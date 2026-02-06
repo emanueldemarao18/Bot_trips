@@ -15,13 +15,20 @@ async function startBot() {
     sock.ev.on('connection.update', (update) => {
         const { connection, lastDisconnect, qr } = update;
 
-        if (qr) qrcode.generate(qr, { small: true });
+        if (qr) {
+            console.clear();
+            qrcode.generate(qr, { small: true });
+        }
 
-        if (connection === 'open') console.log('Bot conectado 🚀');
+        if (connection === 'open') {
+            console.log('✅ Bot conectado 🚀');
+        }
 
         if (connection === 'close') {
             const shouldReconnect =
                 lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
+
+            console.log('🔁 Reconectando...', shouldReconnect);
 
             if (shouldReconnect) startBot();
         }
@@ -36,106 +43,135 @@ async function startBot() {
             msg.message.extendedTextMessage?.text ||
             '';
 
+        if (!text.startsWith('!')) return;
+
         const jid = msg.key.remoteJid;
         const command = text.toLowerCase().trim();
 
         const hoje = new Date();
         const viagem = new Date(2026, 2, 4);
-        const diff = Math.ceil((viagem - hoje) / (1000 * 60 * 60 * 24));
+        const diff = Math.max(
+            0,
+            Math.ceil((viagem - hoje) / (1000 * 60 * 60 * 24))
+        );
 
-        // ✈️ viagem
-        if (command === '!viagem') {
-            await sock.sendMessage(jid, {
-                text: `Faltam ${diff} dias pra Holanda 🇳🇱🔥`
-            });
-        }
-
-        // ⏳ countdown
-        if (command === '!countdown') {
-            const horas = diff * 24;
-            const minutos = horas * 60;
-
-            await sock.sendMessage(jid, {
-                text: `🚀 ${diff} dias\n🔥 ${horas} horas\n💥 ${minutos} minutos`
-            });
-        }
-
-        // 🧳 mala frio/calor
-        if (command.startsWith('!mala')) {
-            if (command.includes('frio')) {
+        try {
+            // ✈️ viagem
+            if (command === '!viagem') {
                 await sock.sendMessage(jid, {
-                    text: `🧳 Mala frio:
+                    text: `✈️ Faltam ${diff} dias pra Holanda 🇳🇱🔥`
+                });
+            }
+
+            // ⏳ countdown
+            else if (command === '!countdown') {
+                const horas = diff * 24;
+                const minutos = horas * 60;
+
+                await sock.sendMessage(jid, {
+                    text: `🚀 ${diff} dias\n🔥 ${horas} horas\n💥 ${minutos} minutos`
+                });
+            }
+
+            // 🧳 mala
+            else if (command.startsWith('!mala')) {
+                if (command.includes('frio')) {
+                    await sock.sendMessage(jid, {
+                        text: `🧳 Mala frio:
 Casaco 🧥
 Luvas 🧤
 Cachecol 🧣`
-                });
-            } else {
-                await sock.sendMessage(jid, {
-                    text: `🧳 Mala calor:
+                    });
+                } else if (command.includes('calor')) {
+                    await sock.sendMessage(jid, {
+                        text: `🧳 Mala calor:
 T-shirts 👕
 Shorts 🩳
 Óculos 😎`
+                    });
+                } else {
+                    await sock.sendMessage(jid, {
+                        text: `Usa: !mala frio ou !mala calor`
+                    });
+                }
+            }
+
+            // 💶 orçamento
+            else if (command.startsWith('!orcamento')) {
+                const parts = command.split(' ');
+                const total = Number(parts[1]);
+                const pessoas = Number(parts[2]);
+
+                if (!total || !pessoas) {
+                    await sock.sendMessage(jid, {
+                        text: `Uso: !orcamento 300 3`
+                    });
+                    return;
+                }
+
+                const each = (total / pessoas).toFixed(2);
+
+                await sock.sendMessage(jid, {
+                    text: `💶 Cada pessoa paga: €${each}`
                 });
             }
-        }
 
-        // 💶 orçamento
-        if (command.startsWith('!orcamento')) {
-            const parts = command.split(' ');
-            const total = Number(parts[1]);
-            const pessoas = Number(parts[2]);
+            // 📍 hotel salvar
+            else if (command.startsWith('!hotel')) {
+                const nome = text.replace('!hotel', '').trim();
 
-            if (!total || !pessoas) return;
+                if (!nome) {
+                    await sock.sendMessage(jid, {
+                        text: `Uso: !hotel nome do hotel`
+                    });
+                    return;
+                }
 
-            const each = (total / pessoas).toFixed(2);
+                memory.hotel = nome;
 
-            await sock.sendMessage(jid, {
-                text: `Cada pessoa paga: €${each}`
-            });
-        }
+                await sock.sendMessage(jid, {
+                    text: `📍 Hotel salvo: ${memory.hotel}`
+                });
+            }
 
-        // 📍 hotel salvar
-        if (command.startsWith('!hotel')) {
-            memory.hotel = text.replace('!hotel', '').trim();
+            // 📋 info
+            else if (command === '!info') {
+                await sock.sendMessage(jid, {
+                    text: `📋 Info viagem:
+Hotel: ${memory.hotel || 'não definido'}`
+                });
+            }
 
-            await sock.sendMessage(jid, {
-                text: `Hotel salvo: ${memory.hotel}`
-            });
-        }
+            // 😂 mood
+            else if (command === '!mood') {
+                const frases = [
+                    'Já sente o cheiro da liberdade? ✈️',
+                    'Essa viagem vai ser histórica 😎',
+                    'Só falta fazer a mala 🧳',
+                    'Holanda nos espera 🇳🇱🔥'
+                ];
 
-        // 📋 info
-        if (command === '!info') {
-            await sock.sendMessage(jid, {
-                text: `📍 Hotel: ${memory.hotel || 'não definido'}`
-            });
-        }
+                const r = frases[Math.floor(Math.random() * frases.length)];
 
-        // 😂 mood
-        if (command === '!mood') {
-            const frases = [
-                'Já sente o cheiro da liberdade? ✈️',
-                'Essa viagem vai ser histórica 😎',
-                'Só falta fazer a mala 🧳',
-                'Holanda nos espera 🇳🇱🔥'
-            ];
+                await sock.sendMessage(jid, { text: r });
+            }
 
-            const r = frases[Math.floor(Math.random() * frases.length)];
-
-            await sock.sendMessage(jid, { text: r });
-        }
-
-        // 🧠 help
-        if (command === '!help') {
-            await sock.sendMessage(jid, {
-                text: `Comandos:
+            // 🧠 help
+            else if (command === '!help') {
+                await sock.sendMessage(jid, {
+                    text: `🤖 Comandos:
 !viagem
 !countdown
-!mala frio/calor
+!mala frio
+!mala calor
 !orcamento total pessoas
 !hotel nome
 !info
 !mood`
-            });
+                });
+            }
+        } catch (err) {
+            console.log('Erro comando:', err);
         }
     });
 }
