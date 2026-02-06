@@ -1,5 +1,6 @@
 import makeWASocket, { useMultiFileAuthState, DisconnectReason } from '@whiskeysockets/baileys';
-import qrcode from 'qrcode-terminal';
+import open from 'open';
+import QRCode from 'qrcode';
 
 const memory = {
     hotel: null
@@ -12,12 +13,14 @@ async function startBot() {
 
     sock.ev.on('creds.update', saveCreds);
 
-    sock.ev.on('connection.update', (update) => {
+    sock.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect, qr } = update;
 
+        // ✅ abre QR automaticamente no navegador
         if (qr) {
-            console.clear();
-            qrcode.generate(qr, { small: true });
+            const dataUrl = await QRCode.toDataURL(qr);
+            await open(dataUrl);
+            console.log('📸 QR aberto no navegador');
         }
 
         if (connection === 'open') {
