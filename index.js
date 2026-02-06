@@ -1,10 +1,7 @@
 import makeWASocket, { useMultiFileAuthState, DisconnectReason } from '@whiskeysockets/baileys';
-import open from 'open';
 import QRCode from 'qrcode';
 
-const memory = {
-    hotel: null
-};
+const memory = { hotel: null };
 
 async function startBot() {
     const { state, saveCreds } = await useMultiFileAuthState('auth');
@@ -16,16 +13,14 @@ async function startBot() {
     sock.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect, qr } = update;
 
-        // ✅ abre QR automaticamente no navegador
+        
         if (qr) {
             const dataUrl = await QRCode.toDataURL(qr);
-            await open(dataUrl);
-            console.log('📸 QR aberto no navegador');
+            console.log('\n🔑 Abra este link no navegador:\n');
+            console.log(dataUrl);
         }
 
-        if (connection === 'open') {
-            console.log('✅ Bot conectado 🚀');
-        }
+        if (connection === 'open') console.log('✅ Bot conectado 🚀');
 
         if (connection === 'close') {
             const shouldReconnect =
@@ -53,124 +48,36 @@ async function startBot() {
 
         const hoje = new Date();
         const viagem = new Date(2026, 2, 4);
-        const diff = Math.max(
-            0,
-            Math.ceil((viagem - hoje) / (1000 * 60 * 60 * 24))
-        );
+        const diff = Math.max(0, Math.ceil((viagem - hoje) / 86400000));
 
         try {
-            // ✈️ viagem
             if (command === '!viagem') {
                 await sock.sendMessage(jid, {
                     text: `✈️ Faltam ${diff} dias pra Holanda 🇳🇱🔥`
                 });
             }
 
-            // ⏳ countdown
             else if (command === '!countdown') {
-                const horas = diff * 24;
-                const minutos = horas * 60;
-
                 await sock.sendMessage(jid, {
-                    text: `🚀 ${diff} dias\n🔥 ${horas} horas\n💥 ${minutos} minutos`
+                    text: `🚀 ${diff} dias\n🔥 ${diff * 24} horas\n💥 ${diff * 1440} minutos`
                 });
             }
 
-            // 🧳 mala
-            else if (command.startsWith('!mala')) {
-                if (command.includes('frio')) {
-                    await sock.sendMessage(jid, {
-                        text: `🧳 Mala frio:
-Casaco 🧥
-Luvas 🧤
-Cachecol 🧣`
-                    });
-                } else if (command.includes('calor')) {
-                    await sock.sendMessage(jid, {
-                        text: `🧳 Mala calor:
-T-shirts 👕
-Shorts 🩳
-Óculos 😎`
-                    });
-                } else {
-                    await sock.sendMessage(jid, {
-                        text: `Usa: !mala frio ou !mala calor`
-                    });
-                }
-            }
-
-            // 💶 orçamento
-            else if (command.startsWith('!orcamento')) {
-                const parts = command.split(' ');
-                const total = Number(parts[1]);
-                const pessoas = Number(parts[2]);
-
-                if (!total || !pessoas) {
-                    await sock.sendMessage(jid, {
-                        text: `Uso: !orcamento 300 3`
-                    });
-                    return;
-                }
-
-                const each = (total / pessoas).toFixed(2);
-
-                await sock.sendMessage(jid, {
-                    text: `💶 Cada pessoa paga: €${each}`
-                });
-            }
-
-            // 📍 hotel salvar
             else if (command.startsWith('!hotel')) {
                 const nome = text.replace('!hotel', '').trim();
-
-                if (!nome) {
-                    await sock.sendMessage(jid, {
-                        text: `Uso: !hotel nome do hotel`
-                    });
-                    return;
-                }
-
                 memory.hotel = nome;
-
-                await sock.sendMessage(jid, {
-                    text: `📍 Hotel salvo: ${memory.hotel}`
-                });
+                await sock.sendMessage(jid, { text: `📍 Hotel salvo: ${memory.hotel}` });
             }
 
-            // 📋 info
             else if (command === '!info') {
                 await sock.sendMessage(jid, {
-                    text: `📋 Info viagem:
-Hotel: ${memory.hotel || 'não definido'}`
+                    text: `📋 Info viagem:\nHotel: ${memory.hotel || 'não definido'}`
                 });
             }
 
-            // 😂 mood
-            else if (command === '!mood') {
-                const frases = [
-                    'Já sente o cheiro da liberdade? ✈️',
-                    'Essa viagem vai ser histórica 😎',
-                    'Só falta fazer a mala 🧳',
-                    'Holanda nos espera 🇳🇱🔥'
-                ];
-
-                const r = frases[Math.floor(Math.random() * frases.length)];
-
-                await sock.sendMessage(jid, { text: r });
-            }
-
-            // 🧠 help
             else if (command === '!help') {
                 await sock.sendMessage(jid, {
-                    text: `🤖 Comandos:
-!viagem
-!countdown
-!mala frio
-!mala calor
-!orcamento total pessoas
-!hotel nome
-!info
-!mood`
+                    text: `🤖 Comandos:\n!viagem\n!countdown\n!hotel nome\n!info`
                 });
             }
         } catch (err) {
